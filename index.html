@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>ESP32 GPIO Monitor</title>
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     h1 { color: darkblue; }
@@ -16,9 +15,9 @@
 </head>
 <body>
   <h1>ESP32 GPIO Monitor</h1>
-  <p>Realtime status (MQTT): <span id="status">---</span></p>
+  <p>Trạng thái hiện tại: <span id="status">Loading...</span></p>
 
-  <h2>Lịch sử (Firebase)</h2>
+  <h2>Lịch sử GPIO</h2>
   <table>
     <thead>
       <tr>
@@ -30,43 +29,28 @@
   </table>
 
   <script>
-    // ============ MQTT CONFIG ============
-    const mqttHost = "w7c22219.ala.asia-southeast1.emqxsl.com";
-    const mqttPort = 8084; // WebSocket over TLS
-    const mqttUser = "esp32user";
-    const mqttPass = "12345678";
-    const topic = "esp32/gpio23";
-
-    const client = mqtt.connect(`wss://${mqttHost}:${mqttPort}/mqtt`, {
-      username: mqttUser,
-      password: mqttPass
-    });
-
-    client.on("connect", () => {
-      console.log("MQTT Connected");
-      client.subscribe(topic);
-    });
-
-    client.on("message", (t, msg) => {
-      if (t === topic) {
-        document.getElementById("status").innerText = msg.toString();
-      }
-    });
-
-    // ============ FIREBASE CONFIG ============
+    // ===== Firebase config =====
     const firebaseConfig = {
-      apiKey: "AIzaSyCr_pH0Xq4oUmc67e3CXKB2mLd9RFQpk4I", // 🔑 thay bằng API Key
+      apiKey: "AIzaSyCr_pH0Xq4oUmc67e3CXKB2mLd9RFQpk4I",
       authDomain: "testweb-9efd6.firebaseapp.com",
       databaseURL: "https://testweb-9efd6-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "testweb-9efd6",
       storageBucket: "testweb-9efd6.appspot.com",
-      messagingSenderId: "1234567890",
-      appId: "1:1234567890:web:abcdef123456"
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:abc123"
     };
 
+    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // ===== Hiển thị trạng thái realtime =====
+    const statusRef = db.ref("gpio23/status");
+    statusRef.on("value", (snapshot) => {
+      document.getElementById("status").innerText = snapshot.val() || "---";
+    });
+
+    // ===== Hiển thị lịch sử =====
     const historyRef = db.ref("gpio23/history");
     historyRef.on("value", (snapshot) => {
       const data = snapshot.val();
@@ -74,14 +58,17 @@
       tbody.innerHTML = "";
 
       if (data) {
-        Object.keys(data).sort().forEach(key => {
+        // sort theo timestamp
+        Object.keys(data).sort().forEach(ts => {
           const row = document.createElement("tr");
           const tdTime = document.createElement("td");
-          const tdVal = document.createElement("td");
-          tdTime.innerText = key;
-          tdVal.innerText = data[key];
+          const tdState = document.createElement("td");
+
+          tdTime.innerText = ts;
+          tdState.innerText = data[ts];
+
           row.appendChild(tdTime);
-          row.appendChild(tdVal);
+          row.appendChild(tdState);
           tbody.appendChild(row);
         });
       }
@@ -89,3 +76,4 @@
   </script>
 </body>
 </html>
+
