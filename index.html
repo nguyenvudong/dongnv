@@ -1,50 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Lịch sử GPIO ESP32</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <title>ESP32 GPIO Monitor</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h1 { color: darkblue; }
+    #status { font-size: 20px; font-weight: bold; margin: 10px 0; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+  </style>
 </head>
 <body>
-  <h2>Lịch sử GPIO ESP32</h2>
-  <table border="1" cellpadding="5">
+  <h1>ESP32 GPIO Monitor</h1>
+  <p>Realtime status (MQTT): <span id="status">---</span></p>
+
+  <h2>Lịch sử (Firebase)</h2>
+  <table>
     <thead>
       <tr>
-        <th>Thời gian</th>
-        <th>Trạng thái</th>
+        <th>Timestamp</th>
+        <th>GPIO23 State</th>
       </tr>
     </thead>
-    <tbody id="dataTable"></tbody>
+    <tbody id="history"></tbody>
   </table>
 
   <script>
-    // ==== Cấu hình Firebase ====
+    // ============ MQTT CONFIG ============
+    const mqttHost = "w7c22219.ala.asia-southeast1.emqxsl.com";
+    const mqttPort = 8084; // WebSocket over TLS
+    const mqttUser = "esp32user";
+    const mqttPass = "12345678";
+    const topic = "esp32/gpio23";
+
+    const client = mqtt.connect(`wss://${mqttHost}:${mqttPort}/mqtt`, {
+      username: mqttUser,
+      password: mqttPass
+    });
+
+    client.on("connect", () => {
+      console.log("MQTT Connected");
+      client.subscribe(topic);
+    });
+
+    client.on("message", (t, msg) => {
+      if (t === topic) {
+        document.getElementById("status").innerText = msg.toString();
+      }
+    });
+
+    // ============ FIREBASE CONFIG ============
     const firebaseConfig = {
-      apiKey: "YOUR_FIREBASE_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyCr_pH0Xq4oUmc67e3CXKB2mLd9RFQpk4I", // 🔑 thay bằng API Key
+      authDomain: "testweb-9efd6.firebaseapp.com",
+      databaseURL: "https://testweb-9efd6-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "testweb-9efd6",
+      storageBucket: "testweb-9efd6.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abcdef123456"
     };
 
     firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    const db = firebase.database();
 
-    // Lấy dữ liệu logs
-    const logsRef = database.ref("gpio/logs");
-    logsRef.on("child_added", (snapshot) => {
+    const historyRef = db.ref("gpio23/history");
+    historyRef.on("value", (snapshot) => {
       const data = snapshot.val();
-      const row = document.createElement("tr");
+      const tbody = document.getElementById("history");
+      tbody.innerHTML = "";
 
-      const time = data.time ? new Date(data.time).toLocaleString() : snapshot.key;
-      row.innerHTML = `
-        <td>${time}</td>
-        <td>${data.state}</td>
-      `;
-      document.getElementById("dataTable").appendChild(row);
+      if (data) {
+        Object.keys(data).sort().forEach(key => {
+          const row = document.createElement("tr");
+          const tdTime = document.createElement("td");
+          const tdVal = document.createElement("td");
+          tdTime.innerText = key;
+          tdVal.innerText = data[key];
+          row.appendChild(tdTime);
+          row.appendChild(tdVal);
+          tbody.appendChild(row);
+        });
+      }
     });
   </script>
 </body>
