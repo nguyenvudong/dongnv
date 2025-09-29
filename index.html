@@ -1,79 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>ESP32 GPIO Monitor</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    h1 { color: darkblue; }
-    #status { font-size: 20px; font-weight: bold; margin: 10px 0; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-  </style>
+  <title>GPIO23 Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
-  <h1>ESP32 GPIO Monitor</h1>
-  <p>Trạng thái hiện tại: <span id="status">Loading...</span></p>
-
-  <h2>Lịch sử GPIO</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Timestamp</th>
-        <th>GPIO23 State</th>
-      </tr>
-    </thead>
-    <tbody id="history"></tbody>
-  </table>
+  <canvas id="gpioChart" width="600" height="300"></canvas>
 
   <script>
-    // ===== Firebase config =====
-    const firebaseConfig = {
-      apiKey: "AIzaSyCr_pH0Xq4oUmc67e3CXKB2mLd9RFQpk4I",
-      authDomain: "testweb-9efd6.firebaseapp.com",
-      databaseURL: "https://testweb-9efd6-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "testweb-9efd6",
-      storageBucket: "testweb-9efd6.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "1:123456789:web:abc123"
-    };
+    const dataPoints = [];
+    const labels = [];
+    const maxPoints = 5;
 
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // ===== Hiển thị trạng thái realtime =====
-    const statusRef = db.ref("gpio23/status");
-    statusRef.on("value", (snapshot) => {
-      document.getElementById("status").innerText = snapshot.val() || "---";
+    const ctx = document.getElementById('gpioChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'GPIO23',
+          data: dataPoints,
+          borderColor: 'blue',
+          fill: false
+        }]
+      },
+      options: {
+        animation: false,
+        scales: { y: { min: 0, max: 1 } }
+      }
     });
 
-    // ===== Hiển thị lịch sử =====
-    const historyRef = db.ref("gpio23/history");
-    historyRef.on("value", (snapshot) => {
-      const data = snapshot.val();
-      const tbody = document.getElementById("history");
-      tbody.innerHTML = "";
+    const client = mqtt.connect('wss://YOUR_EMQX_DOMAIN:8084', {
+      username: 'dashboard',
+      password: '123456'
+    });
 
-      if (data) {
-        // sort theo timestamp
-        Object.keys(data).sort().forEach(ts => {
-          const row = document.createElement("tr");
-          const tdTime = document.createElement("td");
-          const tdState = document.createElement("td");
+    client.on('connect', () => {
+      client.subscribe('esp32/gpio23');
+    });
 
-          tdTime.innerText = ts;
-          tdState.innerText = data[ts];
+    client.on('message', (topic, message) => {
+      const value = parseInt(message.toString());
+      const time = new Date().toLocaleTimeString();
 
-          row.appendChild(tdTime);
-          row.appendChild(tdState);
-          tbody.appendChild(row);
-        });
+      if (dataPoints.length >= maxPoints) {
+        dataPoints.shift();
+        labels.shift();
       }
+
+      dataPoints.push(value);
+      labels.push(time);
+
+      chart.update();
     });
   </script>
 </body>
 </html>
-
