@@ -1,29 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ESP32 GPIO Status</title>
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Lịch sử GPIO ESP32</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h2>Trạng thái GPIO 23</h2>
-  <div id="status">Đang kết nối...</div>
+  <h2>Lịch sử GPIO ESP32</h2>
+  <table border="1" cellpadding="5">
+    <thead>
+      <tr>
+        <th>Thời gian</th>
+        <th>Trạng thái</th>
+      </tr>
+    </thead>
+    <tbody id="dataTable"></tbody>
+  </table>
 
   <script>
-    const options = {
-      username: "esp32user",   // giống ESP32
-      password: "12345678",
+    // ==== Cấu hình Firebase ====
+    const firebaseConfig = {
+      apiKey: "YOUR_FIREBASE_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
 
-    const client = mqtt.connect("wss://w7c22219.ala.asia-southeast1.emqxsl.com:8084/mqtt", options);
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
-    client.on("connect", () => {
-      document.getElementById("status").innerText = "Đã kết nối MQTT!";
-      client.subscribe("esp32/gpio23");
-    });
+    // Lấy dữ liệu logs
+    const logsRef = database.ref("gpio/logs");
+    logsRef.on("child_added", (snapshot) => {
+      const data = snapshot.val();
+      const row = document.createElement("tr");
 
-    client.on("message", (topic, message) => {
-      document.getElementById("status").innerText =
-        "GPIO 23: " + message.toString();
+      const time = data.time ? new Date(data.time).toLocaleString() : snapshot.key;
+      row.innerHTML = `
+        <td>${time}</td>
+        <td>${data.state}</td>
+      `;
+      document.getElementById("dataTable").appendChild(row);
     });
   </script>
 </body>
