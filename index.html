@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP32 GPIO Status</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+  <h2>Trạng thái GPIO 23</h2>
+  <div id="status">Đang kết nối...</div>
+
+  <script>
+    const options = {
+      username: "esp32user",   // giống ESP32
+      password: "12345678",
+    };
+
+    const client = mqtt.connect("wss://w7c22219.ala.asia-southeast1.emqxsl.com:8084/mqtt", options);
+
+    client.on("connect", () => {
+      document.getElementById("status").innerText = "Đã kết nối MQTT!";
+      client.subscribe("esp32/gpio23");
+    });
+
+    client.on("message", (topic, message) => {
+      document.getElementById("status").innerText =
+        "GPIO 23: " + message.toString();
+    });
+  </script>
+</body>
+</html>
